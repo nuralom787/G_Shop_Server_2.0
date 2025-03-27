@@ -33,6 +33,7 @@ async function run() {
         await client.connect();
         const database = client.db('GS_Shop');
         const productsCollection = database.collection('products');
+        const popularCollection = database.collection('popularProducts');
         const ordersCollection = database.collection('orders');
         const customersCollection = database.collection('customers');
         const categoriesCollection = database.collection('categories');
@@ -246,6 +247,18 @@ async function run() {
             res.send(result);
         });
 
+
+        // Get Popular Product.
+        app.get("/popularProducts", async (req, res) => {
+            const popularProducts = await popularCollection.find().toArray();
+            const count = await popularCollection.estimatedDocumentCount();
+            const totalCount = await popularCollection.estimatedDocumentCount();
+            res.send({
+                totalCount,
+                count,
+                popularProducts
+            });
+        });
 
         // Add/Post New Products.
         app.post('/add-new/product', async (req, res) => {
@@ -873,7 +886,7 @@ run().catch(console.dir);
 
 // Default Get.
 app.get('/', (req, res) => {
-    res.send('Running G-Shop_Server');
+    res.send('Running G-Shop Server');
 });
 
 
