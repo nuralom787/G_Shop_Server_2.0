@@ -35,6 +35,7 @@ async function run() {
         const productsCollection = database.collection('products');
         const popularCollection = database.collection('popularProducts');
         const ordersCollection = database.collection('orders');
+        const cartsCollection = database.collection('carts');
         const customersCollection = database.collection('customers');
         const categoriesCollection = database.collection('categories');
         const couponsCollection = database.collection('coupons');
@@ -473,91 +474,171 @@ async function run() {
 
 
 
-        /*---------------------------------------------------------
-        //                  Customers/User API
-        ---------------------------------------------------------*/
+
+
+        /*--------------------------------------------------------------
+        //                      Coupons API.
+        --------------------------------------------------------------*/
 
 
 
-        // Get All Customers.
-        app.get('/customers', async (req, res) => {
+        // Get All Coupon.
+        app.get('/coupons', async (req, res) => {
             const page = req.query.page;
             const size = parseInt(req.query.size);
             const search = req.query.search;
+            let coupons;
 
-            let customers;
-            let count;
             if (page) {
                 const filter = {
                     $or: [
-                        { displayName: { $regex: search, $options: 'i' } },
-                        { email: { $regex: search, $options: 'i' } },
-                        { phoneNumber: { $regex: search, $options: 'i' } }
+                        { title: { $regex: search, $options: 'i' } },
+                        { couponCode: { $regex: search, $options: 'i' } }
                     ]
                 };
-                customers = await customersCollection.find(filter).skip(page * size).limit(size).toArray();
-                const customersLimit = await customersCollection.find(filter).toArray();
-                count = customersLimit.length;
-            }
-            else {
-                const filter = {
-                    $or: [
-                        { displayName: { $regex: search, $options: 'i' } },
-                        { email: { $regex: search, $options: 'i' } },
-                        { phoneNumber: { $regex: search, $options: 'i' } }
-                    ]
-                };
-                customers = await customersCollection.find(filter).toArray();
-                count = customers.length;
+                coupons = await couponsCollection.find(filter).skip(page * size).limit(size).toArray();
+                const couponsLimit = await couponsCollection.find(filter).toArray();
+                count = couponsLimit.length;
+            } else {
+                coupons = await couponsCollection.find({}).toArray();
+                count = coupons.length;
             }
 
-            const totalCount = await customersCollection.estimatedDocumentCount();
+            const totalCount = await couponsCollection.estimatedDocumentCount();
 
             res.send({
                 totalCount,
                 count,
-                customers,
+                coupons,
             });
         });
 
 
-        // Get Specific Product.
-        app.get('/customers/:id', async (req, res) => {
+        // Get a Specific Coupon.
+        app.get('/coupon/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
-            const result = await customersCollection.findOne(query);
+            const result = await couponsCollection.findOne(query);
             res.send(result);
         });
 
 
-        // Post New Users.
-        app.post('/add/customers', async (req, res) => {
-            const newData = req.body;
-            const result = await customersCollection.insertOne(newData);
-            res.json(result);
-        });
 
-
-        // Upsert Users.
-        app.put('/add/customers', async (req, res) => {
-            const user = req.body;
-            const filter = { email: user.email };
-            const options = { upsert: true };
-            const updateDoc = { $set: user };
-            const result = await customersCollection.updateOne(filter, updateDoc, options);
-            res.json(result);
-        });
-
-
-        // Delete customers.
-        app.delete('/customer/delete/:id', async (req, res) => {
-            const id = req.params.id;
-            console.log(id)
-            const query = { _id: new ObjectId(id) };
-            const result = await customersCollection.deleteOne(query);
+        // Post New Coupon.
+        app.post('/add-new/coupon', async (req, res) => {
+            const coupon = req.body;
+            const result = await couponsCollection.insertOne(coupon);
             res.send(result);
         });
 
+
+        // Update Coupons.
+        app.patch('/update/coupon/:id', async (req, res) => {
+            const id = req.params.id;
+            const data = req.body;
+
+            const filter = { _id: new ObjectId(id) };
+            const updateDoc = {
+                $set: {
+                    logo: data.logo,
+                    thumb: data.thumb,
+                    title: data.title,
+                    minimumAmount: data.minimumAmount,
+                    discountPercentage: data.discountPercentage,
+                    productType: data.productType,
+                    couponCode: data.couponCode,
+                    endTime: data.endTime,
+                    updatedAt: new Date().toISOString()
+                }
+            };
+
+            const result = await couponsCollection.updateOne(filter, updateDoc);
+            res.send(result);
+        });
+
+
+        // Delete coupons.
+        app.delete('/coupon/delete/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await couponsCollection.deleteOne(query);
+            res.send(result);
+        });
+
+
+
+
+        // --------------------------------------------------------
+        //                      Cart API
+        // -------------------------------------------------------
+
+
+
+        // Get Cart Item
+        app.get('/carts', async (req, res) => {
+            const email = req.query.email;
+            const query = { email: email };
+            const result = await cartsCollection.find(query).toArray();
+            res.send(result);
+        });
+
+
+        // Post Item In Carts.
+        app.patch('/carts', async (req, res) => {
+            // const cartItem = req.body;
+            // const result = await cartsCollection.insertOne(cartItem);
+            // res.send(result);
+
+
+            const { email, product } = req.body;
+
+            const user = await cartsCollection.findOne({ email });
+            if (!user) {
+                console.log("user not found")
+                return res.status(404).json({ message: 'User not found' })
+            }
+            else {
+                console.log("user found")
+            }
+
+            // const existingProductIndex = user.cart.findIndex(p => p.productId === product.productId);
+
+            // if (existingProductIndex !== -1) {
+            //     user.cart[existingProductIndex].quantity += product.quantity;
+            // } else {
+            //     user.cart.push(product);
+            // }
+
+            // // Recalculate totals
+            // const totalItem = user.cart.length;
+            // const totalQuantity = user.cart.reduce((sum, p) => sum + p.quantity, 0);
+            // const totalPrice = user.cart.reduce((sum, p) => sum + (p.price * p.quantity), 0);
+
+            // await db.collection('users').updateOne(
+            //     { email },
+            //     {
+            //         $set: {
+            //             cart: user.cart,
+            //             cartTotalItem: totalItem,
+            //             cartTotalQuantity: totalQuantity,
+            //             cartTotalPrice: totalPrice
+            //         }
+            //     }
+            // );
+
+            // res.json({ message: 'Cart updated' });
+
+
+        });
+
+
+        // Delete Cart Item.
+        app.delete('/carts/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await cartsCollection.deleteOne(query)
+            res.send(result);
+        });
 
 
 
@@ -661,95 +742,90 @@ async function run() {
 
 
 
-        /*--------------------------------------------------------------
-        //                      Coupons API.
-        --------------------------------------------------------------*/
+        /*---------------------------------------------------------
+        //                  Customers/User API
+        ---------------------------------------------------------*/
 
 
 
-        // Get All Coupon.
-        app.get('/coupons', async (req, res) => {
+        // Get All Customers.
+        app.get('/customers', async (req, res) => {
             const page = req.query.page;
             const size = parseInt(req.query.size);
             const search = req.query.search;
-            let coupons;
 
+            let customers;
+            let count;
             if (page) {
                 const filter = {
                     $or: [
-                        { title: { $regex: search, $options: 'i' } },
-                        { couponCode: { $regex: search, $options: 'i' } }
+                        { displayName: { $regex: search, $options: 'i' } },
+                        { email: { $regex: search, $options: 'i' } },
+                        { phoneNumber: { $regex: search, $options: 'i' } }
                     ]
                 };
-                coupons = await couponsCollection.find(filter).skip(page * size).limit(size).toArray();
-                const couponsLimit = await couponsCollection.find(filter).toArray();
-                count = couponsLimit.length;
-            } else {
-                coupons = await couponsCollection.find({}).toArray();
-                count = coupons.length;
+                customers = await customersCollection.find(filter).skip(page * size).limit(size).toArray();
+                const customersLimit = await customersCollection.find(filter).toArray();
+                count = customersLimit.length;
+            }
+            else {
+                const filter = {
+                    $or: [
+                        { displayName: { $regex: search, $options: 'i' } },
+                        { email: { $regex: search, $options: 'i' } },
+                        { phoneNumber: { $regex: search, $options: 'i' } }
+                    ]
+                };
+                customers = await customersCollection.find(filter).toArray();
+                count = customers.length;
             }
 
-            const totalCount = await couponsCollection.estimatedDocumentCount();
+            const totalCount = await customersCollection.estimatedDocumentCount();
 
             res.send({
                 totalCount,
                 count,
-                coupons,
+                customers,
             });
         });
 
 
-        // Get a Specific Coupon.
-        app.get('/coupon/:id', async (req, res) => {
+        // Get Specific Product.
+        app.get('/customers/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
-            const result = await couponsCollection.findOne(query);
+            const result = await customersCollection.findOne(query);
             res.send(result);
         });
 
 
-
-        // Post New Coupon.
-        app.post('/add-new/coupon', async (req, res) => {
-            const coupon = req.body;
-            const result = await couponsCollection.insertOne(coupon);
-            res.send(result);
+        // Post New Users.
+        app.post('/add/customers', async (req, res) => {
+            const newData = req.body;
+            const result = await customersCollection.insertOne(newData);
+            res.json(result);
         });
 
 
-        // Update Coupons.
-        app.patch('/update/coupon/:id', async (req, res) => {
+        // Upsert Users.
+        app.put('/add/customers', async (req, res) => {
+            const user = req.body;
+            const filter = { email: user.email };
+            const options = { upsert: true };
+            const updateDoc = { $set: user };
+            const result = await customersCollection.updateOne(filter, updateDoc, options);
+            res.json(result);
+        });
+
+
+        // Delete customers.
+        app.delete('/customer/delete/:id', async (req, res) => {
             const id = req.params.id;
-            const data = req.body;
-
-            const filter = { _id: new ObjectId(id) };
-            const updateDoc = {
-                $set: {
-                    logo: data.logo,
-                    thumb: data.thumb,
-                    title: data.title,
-                    minimumAmount: data.minimumAmount,
-                    discountPercentage: data.discountPercentage,
-                    productType: data.productType,
-                    couponCode: data.couponCode,
-                    endTime: data.endTime,
-                    updatedAt: new Date().toISOString()
-                }
-            };
-
-            const result = await couponsCollection.updateOne(filter, updateDoc);
-            res.send(result);
-        });
-
-
-        // Delete coupons.
-        app.delete('/coupon/delete/:id', async (req, res) => {
-            const id = req.params.id;
+            console.log(id)
             const query = { _id: new ObjectId(id) };
-            const result = await couponsCollection.deleteOne(query);
+            const result = await customersCollection.deleteOne(query);
             res.send(result);
         });
-
 
 
         /*---------------------------------------------------------------
