@@ -578,57 +578,57 @@ async function run() {
         app.get('/carts', async (req, res) => {
             const email = req.query.email;
             const query = { email: email };
-            const result = await cartsCollection.find(query).toArray();
+            const result = await cartsCollection.findOne(query);
             res.send(result);
         });
 
 
         // Post Item In Carts.
         app.patch('/carts', async (req, res) => {
-            // const cartItem = req.body;
-            // const result = await cartsCollection.insertOne(cartItem);
-            // res.send(result);
-
-
-            const { email, product } = req.body;
-
+            const { email, item } = req.body;
             const user = await cartsCollection.findOne({ email });
+
+
             if (!user) {
-                console.log("user not found")
-                return res.status(404).json({ message: 'User not found' })
+                const cart = [item];
+                const data = {
+                    email: email,
+                    cart: cart,
+                    cartTotalPrice: item.price,
+                    cartTotalItem: cart.length,
+                    cartTotalQuantity: item.quantity
+                };
+
+                const result = await cartsCollection.insertOne(data);
+                res.send({ message: 'Item Added In The Cart.', result });
             }
             else {
-                console.log("user found")
+                const existingProductIndex = user.cart.findIndex(p => p._id === item._id);
+
+                if (existingProductIndex !== -1) {
+                    user.cart[existingProductIndex].quantity += item.quantity;
+                }
+                else {
+                    user.cart.push(item);
+                }
+
+                // Recalculate totals
+                const totalItem = user.cart.length;
+                const totalQuantity = user.cart.reduce((sum, p) => sum + p.quantity, 0);
+                const totalPrice = user.cart.reduce((sum, p) => sum + (p.price * p.quantity), 0);
+
+                const filter = { email: email };
+                const updateDoc = {
+                    $set: {
+                        cart: user.cart,
+                        cartTotalPrice: totalPrice,
+                        cartTotalItem: totalItem,
+                        cartTotalQuantity: totalQuantity
+                    }
+                };
+                const result = await cartsCollection.updateOne(filter, updateDoc);
+                res.status(200).send(result);
             }
-
-            // const existingProductIndex = user.cart.findIndex(p => p.productId === product.productId);
-
-            // if (existingProductIndex !== -1) {
-            //     user.cart[existingProductIndex].quantity += product.quantity;
-            // } else {
-            //     user.cart.push(product);
-            // }
-
-            // // Recalculate totals
-            // const totalItem = user.cart.length;
-            // const totalQuantity = user.cart.reduce((sum, p) => sum + p.quantity, 0);
-            // const totalPrice = user.cart.reduce((sum, p) => sum + (p.price * p.quantity), 0);
-
-            // await db.collection('users').updateOne(
-            //     { email },
-            //     {
-            //         $set: {
-            //             cart: user.cart,
-            //             cartTotalItem: totalItem,
-            //             cartTotalQuantity: totalQuantity,
-            //             cartTotalPrice: totalPrice
-            //         }
-            //     }
-            // );
-
-            // res.json({ message: 'Cart updated' });
-
-
         });
 
 
