@@ -583,7 +583,7 @@ async function run() {
         });
 
 
-        // Post Item In Carts.
+        // Post or update Item In Carts.
         app.patch('/carts', async (req, res) => {
             const { email, item } = req.body;
             const user = await cartsCollection.findOne({ email });
@@ -629,6 +629,40 @@ async function run() {
                 const result = await cartsCollection.updateOne(filter, updateDoc);
                 res.status(200).send(result);
             }
+        });
+
+
+        // Update cart item quantity.
+        app.patch('/carts/quantity', async (req, res) => {
+            const action = req.query.quantity;
+            const { email, id } = req.body;
+            const user = await cartsCollection.findOne({ email });
+
+            const existingProductIndex = user.cart.findIndex(item => item._id === id);
+
+            if (action === "-1") {
+                user.cart[existingProductIndex].quantity -= 1;
+            }
+            else {
+                user.cart[existingProductIndex].quantity += 1;
+            }
+
+            // Recalculate totals
+            const totalItem = user.cart.length;
+            const totalQuantity = user.cart.reduce((sum, p) => sum + p.quantity, 0);
+            const totalPrice = user.cart.reduce((sum, p) => sum + (p.price * p.quantity), 0);
+
+            const filter = { email: email };
+            const updateDoc = {
+                $set: {
+                    cart: user.cart,
+                    cartTotalPrice: totalPrice,
+                    cartTotalItem: totalItem,
+                    cartTotalQuantity: totalQuantity
+                }
+            };
+            const result = await cartsCollection.updateOne(filter, updateDoc);
+            res.status(200).send(result);
         });
 
 
