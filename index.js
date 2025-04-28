@@ -667,11 +667,27 @@ async function run() {
 
 
         // Delete Cart Item.
-        app.delete('/carts/:id', async (req, res) => {
-            const id = req.params.id;
-            const query = { _id: new ObjectId(id) };
-            const result = await cartsCollection.deleteOne(query)
-            res.send(result);
+        app.delete('/carts', async (req, res) => {
+            const email = req.query.email;
+            const id = req.query.id;
+            console.log(email, id);
+            const user = await cartsCollection.findOne({ email });
+            const newCart = user.cart.filter(p => p._id !== id);
+
+            const totalItem = newCart.length;
+            const totalQuantity = newCart.reduce((sum, p) => sum + p.quantity, 0);
+            const totalPrice = newCart.reduce((sum, p) => sum + (p.price * p.quantity), 0);
+            const filter = { email: email };
+            const updateDoc = {
+                $set: {
+                    cart: newCart,
+                    cartTotalPrice: totalPrice,
+                    cartTotalItem: totalItem,
+                    cartTotalQuantity: totalQuantity
+                }
+            };
+            const result = await cartsCollection.updateOne(filter, updateDoc);
+            res.status(200).send(result);
         });
 
 
