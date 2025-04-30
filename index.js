@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 require("dotenv").config();
 const { MongoClient, ObjectId, ServerApiVersion } = require('mongodb');
-
+var jwt = require('jsonwebtoken');
 
 // Ports
 const port = process.env.PORT || 5000;
@@ -12,8 +12,6 @@ const app = express();
 // Middleware.
 app.use(express.json());
 app.use(cors());
-
-
 
 
 // MongoDB Server Code.
@@ -51,31 +49,31 @@ async function run() {
 
 
         // Create JWT Token.
-        // app.post('/jwt', async (req, res) => {
-        //     const user = req.body;
-        //     if (!user.email) {
-        //         return res.status(400).json({ error: "Email is required" })
-        //     };
-        //     const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
-        //     res.send({ token });
-        // });
+        app.post('/jwt', async (req, res) => {
+            const user = req.body;
+            if (!user.email) {
+                return res.status(400).json({ error: "Email is required" })
+            };
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
+            res.send({ token });
+        });
 
 
         // Check Token Middleware.
-        // const VerifyToken = (req, res, next) => {
-        //     // console.log(req.headers.authorization);
-        //     if (!req.headers.authorization) {
-        //         return res.status(401).send({ status: 401, message: 'unauthorize access' });
-        //     }
-        //     const token = req.headers.authorization.split(" ")[1];
-        //     jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
-        //         if (err) {
-        //             return res.status(401).send({ message: 'unauthorize access' });
-        //         }
-        //         req.decoded = decoded;
-        //         next();
-        //     })
-        // };
+        const VerifyToken = (req, res, next) => {
+            // console.log(req.headers.authorization);
+            if (!req.headers.authorization) {
+                return res.status(401).send({ status: 401, message: 'unauthorize access' });
+            }
+            const token = req.headers.authorization.split(" ")[1];
+            jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+                if (err) {
+                    return res.status(401).send({ message: 'unauthorize access' });
+                }
+                req.decoded = decoded;
+                next();
+            })
+        };
 
 
         // Check User Admin Middleware.
