@@ -848,21 +848,64 @@ async function run() {
 
 
         // Post New Users.
-        app.post('/add/customers', async (req, res) => {
-            const newData = req.body;
-            const result = await customersCollection.insertOne(newData);
-            res.json(result);
+        app.post('/customers/add', async (req, res) => {
+            let uid;
+            let exists = true;
+            const userData = req.body;
+            const email = { email: userData.email };
+            const existingUser = await customersCollection.findOne(email);
+
+            if (existingUser) {
+                return res.status(409).send({ message: "User Already Exist!!" });
+            }
+            else {
+                while (exists) {
+                    const pin = Math.floor(100000 + Math.random() * 900000);
+                    uid = "GSHOP-" + pin;
+
+                    // Check in your database if this uid already exists
+                    const user = await customersCollection.findOne({ uid });
+                    exists = !!user;
+                };
+                userData.uid = uid
+                const result = await customersCollection.insertOne(userData)
+                res.status(200).send(result);
+            }
         });
 
 
         // Upsert Users.
-        app.put('/add/customers', async (req, res) => {
-            const user = req.body;
-            const filter = { email: user.email };
-            const options = { upsert: true };
-            const updateDoc = { $set: user };
-            const result = await customersCollection.updateOne(filter, updateDoc, options);
-            res.json(result);
+        app.put('/customers/add', async (req, res) => {
+            // let uid;
+            // let exists = true;
+            // const { email } = req.body;
+
+            // const existingUser = await customersCollection.findOne({ email });
+
+            // if (existingUser) {
+            //     return res.status(409).send({ message: "User Already Exist!!" });
+            // }
+            // else {
+            //     const UIDExists = async () => {
+            //         const user = await cartsCollection.findOne({ uid });
+            //         return !!user
+            //     };
+            //     while (exists) {
+            //         const CreateUID = () => {
+            //             const pin = Math.floor(100000 + Math.random() * 900000);
+            //             uid = "GSHOP-" + pin;
+            //         };
+
+            //         // Check in your database if this uid already exists
+            //         exists = await UIDExists(uid);
+            //     };
+
+            //     const filter = { email: user.email };
+            //     const options = { upsert: true };
+            //     const updateDoc = { $set: user };
+            //     const result = await customersCollection.updateOne(filter, updateDoc, options);
+            //     res.json(result);
+            // }
         });
 
 
