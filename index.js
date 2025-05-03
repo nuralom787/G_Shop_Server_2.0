@@ -838,11 +838,10 @@ async function run() {
         });
 
 
-        // Get Specific Product.
-        app.get('/customers/:id', async (req, res) => {
-            const id = req.params.id;
-            const query = { _id: new ObjectId(id) };
-            const result = await customersCollection.findOne(query);
+        // Get Specific Customers.
+        app.get('/customer', async (req, res) => {
+            const { email } = req.query;
+            const result = await customersCollection.findOne({ email });
             res.send(result);
         });
 
