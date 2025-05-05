@@ -739,23 +739,27 @@ async function run() {
 
         // Get Single Order.
         app.get('/order/user', async (req, res) => {
-            // const page = req.query.page;
-            // const size = parseInt(req.query.size);
+            const page = req.query.page;
+            const size = parseInt(req.query.size);
             const email = req.query.email;
             const query = { email: email };
             let orders;
             let count;
             if (page && email) {
                 orders = await ordersCollection.find(query).skip(page * size).limit(size).toArray();
-                count = await ordersCollection.countDocuments();
+                count = orders.length;
             } else if (email) {
                 orders = await ordersCollection.find(query).toArray();
-                count = await ordersCollection.countDocuments();
+                count = orders.length;
             } else if (page) {
                 orders = await ordersCollection.find({}).skip(page * size).limit(size).toArray();
-                count = await ordersCollection.countDocuments();
+                count = orders.length;
             }
+
+            const totalCount = await ordersCollection.estimatedDocumentCount();
+
             res.json({
+                totalCount,
                 count,
                 orders,
             });
