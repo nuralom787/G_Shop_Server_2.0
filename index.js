@@ -38,6 +38,10 @@ async function run() {
         const categoriesCollection = database.collection('categories');
         const couponsCollection = database.collection('coupons');
         const staffsCollection = database.collection('staffs');
+        const divisionsCollection = database.collection('divisions');
+        const districtsCollection = database.collection('districts');
+        const upazilasCollection = database.collection('upazilas');
+        const unionsCollection = database.collection('unions');
 
 
 
@@ -1042,6 +1046,36 @@ async function run() {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
             const result = await staffsCollection.deleteOne(query);
+            res.send(result);
+        });
+
+
+
+        // ----------------------------------------------------------------------------
+        //                          Location API
+        // ----------------------------------------------------------------------------
+
+
+        app.get("/divisions", async (req, res) => {
+            const result = await divisionsCollection.find().toArray();
+            res.send(result);
+        });
+
+
+        app.get("/districts", async (req, res) => {
+            const result = await districtsCollection.find().toArray();
+            res.send(result);
+        });
+
+
+        app.get("/upazilas", async (req, res) => {
+            const result = await upazilasCollection.find().toArray();
+            res.send(result);
+        });
+
+
+        app.get("/unions", async (req, res) => {
+            const result = await unionsCollection.find().toArray();
             res.send(result);
         });
 
