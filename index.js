@@ -853,7 +853,7 @@ async function run() {
         });
 
 
-        // Post New Users.
+        // Post New Customer Info.
         app.post('/customers/add', async (req, res) => {
             let uid;
             let exists = true;
@@ -880,38 +880,13 @@ async function run() {
         });
 
 
-        // Upsert Users.
-        app.put('/customers/add', async (req, res) => {
-            // let uid;
-            // let exists = true;
-            // const { email } = req.body;
+        // Add Customer Addresses.
+        app.put('/customer/add/address', async (req, res) => {
+            const email = req.query.user;
+            const newAddress = req.body;
 
-            // const existingUser = await customersCollection.findOne({ email });
-
-            // if (existingUser) {
-            //     return res.status(409).send({ message: "User Already Exist!!" });
-            // }
-            // else {
-            //     const UIDExists = async () => {
-            //         const user = await cartsCollection.findOne({ uid });
-            //         return !!user
-            //     };
-            //     while (exists) {
-            //         const CreateUID = () => {
-            //             const pin = Math.floor(100000 + Math.random() * 900000);
-            //             uid = "GSHOP-" + pin;
-            //         };
-
-            //         // Check in your database if this uid already exists
-            //         exists = await UIDExists(uid);
-            //     };
-
-            //     const filter = { email: user.email };
-            //     const options = { upsert: true };
-            //     const updateDoc = { $set: user };
-            //     const result = await customersCollection.updateOne(filter, updateDoc, options);
-            //     res.json(result);
-            // }
+            const result = await customersCollection.updateOne({ email }, { $push: { addresses: newAddress } });
+            res.send(result);
         });
 
 
@@ -1055,13 +1030,13 @@ async function run() {
         // ----------------------------------------------------------------------------
 
 
-        app.get("/api/v1/region", async (req, res) => {
+        app.get("/api/region", async (req, res) => {
             const result = await regionCollection.find().toArray();
             res.send(result);
         });
 
 
-        app.get("/api/v1/city", async (req, res) => {
+        app.get("/api/city", async (req, res) => {
             const id = req.query.addressId
             const query = { parentId: id };
             const result = await cityCollection.find(query).toArray();
@@ -1069,7 +1044,7 @@ async function run() {
         });
 
 
-        app.get("/api/v1/zone", async (req, res) => {
+        app.get("/api/zone", async (req, res) => {
             const id = req.query.addressId
             const query = { parentId: id };
             const result = await zoneCollection.find(query).toArray();
