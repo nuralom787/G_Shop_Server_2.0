@@ -880,6 +880,25 @@ async function run() {
         });
 
 
+        // Update Customer Profile.
+        app.put('/customer/update/profile', async (req, res) => {
+            const { email } = req.query;
+            const updatedData = req.body;
+            // console.log(email, updatedData);
+            updateDoc = {
+                $set: {
+                    displayName: updatedData.displayName,
+                    phoneNumber: updatedData.phoneNumber,
+                    dob: updatedData.dob,
+                    gender: updatedData.gender,
+                    updatedAt: new Date().toISOString()
+                }
+            };
+            const result = await customersCollection.updateOne({ email }, updateDoc);
+            res.send(result);
+        });
+
+
         // Add Customer Addresses.
         app.put('/customer/add/address', async (req, res) => {
             const email = req.query.user;
