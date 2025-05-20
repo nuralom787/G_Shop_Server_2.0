@@ -903,8 +903,44 @@ async function run() {
         app.put('/customer/add/address', async (req, res) => {
             const email = req.query.user;
             const newAddress = req.body;
+            newAddress._id = new ObjectId();
 
             const result = await customersCollection.updateOne({ email }, { $push: { addresses: newAddress } });
+            res.send(result);
+        });
+
+
+        // Update Customer Addresses.
+        app.put('/customer/update/address', async (req, res) => {
+            const email = req.query.user;
+            const id = req.query.addressId;
+            const newAddress = req.body;
+            const query = { email: email, "addresses._id": new ObjectId(id) };
+            const updateDoc = {
+                $set: {
+                    "addresses.$.fullName": newAddress.fullName,
+                    "addresses.$.phoneNumber": newAddress.phoneNumber,
+                    "addresses.$.address": newAddress.address,
+                    "addresses.$.region": newAddress.region,
+                    "addresses.$.city": newAddress.city,
+                    "addresses.$.zone": newAddress.zone
+                }
+            };
+
+            const result = await customersCollection.updateOne(query, updateDoc);
+            res.send(result);
+        });
+
+
+        // Delete customers.
+        app.delete('/customer/delete/address', async (req, res) => {
+            const email = req.query.user;
+            const id = req.query.addressId;
+
+            const result = await customersCollection.updateOne(
+                { email },
+                { $pull: { addresses: { _id: new ObjectId(id) } } }
+            );
             res.send(result);
         });
 
