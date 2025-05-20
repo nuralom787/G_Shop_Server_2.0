@@ -671,7 +671,7 @@ async function run() {
         app.delete('/carts', async (req, res) => {
             const email = req.query.email;
             const id = req.query.id;
-            console.log(email, id);
+            // console.log(email, id);
             const user = await cartsCollection.findOne({ email });
             const newCart = user.cart.filter(p => p._id !== id);
 
@@ -948,7 +948,7 @@ async function run() {
         // Delete customers.
         app.delete('/customer/delete/:id', async (req, res) => {
             const id = req.params.id;
-            console.log(id)
+            // console.log(id)
             const query = { _id: new ObjectId(id) };
             const result = await customersCollection.deleteOne(query);
             res.send(result);
