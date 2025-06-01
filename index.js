@@ -193,9 +193,9 @@ async function run() {
 
 
 
-        /*---------------------------------
-                // Products API
-        ---------------------------------*/
+        // -------------------------------------------------------------
+        //                        Products API
+        // -------------------------------------------------------------
 
 
 
@@ -581,7 +581,12 @@ async function run() {
             const email = req.query.email;
             const query = { email: email };
             const result = await cartsCollection.findOne(query);
-            res.send(result);
+            if (result) {
+                res.send(result);
+            }
+            else {
+                res.send({ message: "No Data Found For This User!!" });
+            }
         });
 
 
@@ -597,8 +602,12 @@ async function run() {
                     email: email,
                     cart: cart,
                     cartTotalPrice: item.price,
+                    cartDiscount: 0,
                     cartTotalItem: cart.length,
-                    cartTotalQuantity: item.quantity
+                    cartTotalQuantity: item.quantity,
+                    appliedCoupon: null,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
                 };
 
                 const result = await cartsCollection.insertOne(data);
@@ -624,8 +633,11 @@ async function run() {
                     $set: {
                         cart: user.cart,
                         cartTotalPrice: totalPrice,
+                        cartDiscount: 0,
                         cartTotalItem: totalItem,
-                        cartTotalQuantity: totalQuantity
+                        cartTotalQuantity: totalQuantity,
+                        appliedCoupon: null,
+                        updatedAt: new Date().toISOString()
                     }
                 };
                 const result = await cartsCollection.updateOne(filter, updateDoc);
@@ -659,8 +671,11 @@ async function run() {
                 $set: {
                     cart: user.cart,
                     cartTotalPrice: totalPrice,
+                    cartDiscount: 0,
                     cartTotalItem: totalItem,
-                    cartTotalQuantity: totalQuantity
+                    cartTotalQuantity: totalQuantity,
+                    appliedCoupon: null,
+                    updatedAt: new Date().toISOString()
                 }
             };
             const result = await cartsCollection.updateOne(filter, updateDoc);
@@ -684,12 +699,58 @@ async function run() {
                 $set: {
                     cart: newCart,
                     cartTotalPrice: totalPrice,
+                    cartDiscount: 0,
                     cartTotalItem: totalItem,
-                    cartTotalQuantity: totalQuantity
+                    cartTotalQuantity: totalQuantity,
+                    appliedCoupon: null,
+                    updatedAt: new Date().toISOString()
                 }
             };
             const result = await cartsCollection.updateOne(filter, updateDoc);
             res.status(200).send(result);
+        });
+
+
+        // Apply Coupon Code.
+        app.post('/apply-coupon', async (req, res) => {
+            const { subtotal, couponCode, email } = req.body;
+
+            // Find the coupon in our simulated database
+            const foundCoupon = await couponsCollection.findOne({ couponCode: couponCode.toUpperCase() });
+
+            // If no coupon is found with the given code
+            if (!foundCoupon) {
+                return res.status(400).json({ message: 'Invalid coupon code.' });
+            };
+
+            // Check if the subtotal meets the minimum purchase requirement for the found coupon
+            if (subtotal < foundCoupon.minimumAmount) {
+                const message = `The purchase amount is required to be a minimum of $${foundCoupon.minimumAmount.toFixed(2)} to apply/use this coupon.`;
+                return res.status(400).json({ message });
+            };
+
+
+            // Calculate the discount amount.
+            const discountAmount = (subtotal * foundCoupon.discountPercentage) / 100;
+
+            // Update Cart Discount Amount.
+            const result = await cartsCollection.updateOne({ email }, {
+                $set: {
+                    cartDiscount: parseFloat(discountAmount),
+                    appliedCoupon: couponCode
+                }
+            });
+
+            if (result.modifiedCount > 0) {
+                // Send a successful response with the calculated discount and a message
+                res.status(200).send(result);
+            }
+            else {
+                // Send a Error response message.
+                res.status(400).send({
+                    message: `something want's wrong!! please try again.`,
+                });
+            }
         });
 
 
