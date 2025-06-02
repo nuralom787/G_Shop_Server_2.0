@@ -832,11 +832,77 @@ async function run() {
 
 
         // Get Order For Invoice.
-        app.get('/order/:id', async (req, res) => {
+        app.get('/order/invoice/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
             const result = await ordersCollection.findOne(query);
-            res.send(result);
+            res.status(200).send(result);
+        });
+
+        // Post new Order.
+        app.post('/add-order', async (req, res) => {
+            const orderInfo = req.body;
+            const email = orderInfo.customerInfo.customer_email;
+            let orderId;
+            let orderExists = true;
+            let invoiceId;
+            let invoiceExists = true;
+
+            // Create an Unique Order Id.
+            while (orderExists) {
+                const pin = Math.floor(100000 + Math.random() * 900000);
+                orderId = "order-" + pin;
+
+                // Check database if this orderId already exists
+                const order = await ordersCollection.findOne({ orderId });
+                orderExists = !!order;
+            };
+
+            // Create An Unique Invoice Id.
+            while (invoiceExists) {
+                const pin = Math.floor(100000 + Math.random() * 900000);
+                invoiceId = "#" + pin;
+
+                // Check database if this orderId already exists
+                const invoice = await ordersCollection.findOne({ invoiceId });
+                invoiceExists = !!invoice;
+            };
+
+            orderInfo.orderId = orderId;
+            orderInfo.invoice = invoiceId;
+
+            // Insert Order Data in Order Database.
+            const result = await ordersCollection.insertOne(orderInfo);
+
+            // Remove cart item from cart.
+            if (result.insertedId) {
+                // const user = await cartsCollection.findOne({ email });
+                // const newCart = user.cart.filter(p => p._id !== id);
+
+                // const totalItem = newCart.length;
+                // const totalQuantity = newCart.reduce((sum, p) => sum + p.quantity, 0);
+                // const totalPrice = newCart.reduce((sum, p) => sum + (p.price * p.quantity), 0);
+                const updateDoc = {
+                    $set: {
+                        cart: [],
+                        cartTotalPrice: 0,
+                        cartDiscount: 0,
+                        cartTotalItem: 0,
+                        cartTotalQuantity: 0,
+                        appliedCoupon: null,
+                        updatedAt: new Date().toISOString()
+                    }
+                };
+                const cartResult = await cartsCollection.updateOne({ email }, updateDoc);
+
+                result.orderId = orderId
+                result.invoice = invoiceId
+
+                res.status(200).send(result);
+            }
+            else {
+                res.status(400).send({ message: "somethings want's wrong! please try again." });
+            }
         });
 
 
@@ -931,7 +997,7 @@ async function run() {
                     const pin = Math.floor(100000 + Math.random() * 900000);
                     uid = "GSHOP-" + pin;
 
-                    // Check in your database if this uid already exists
+                    // Check database if this uid already exists
                     const user = await customersCollection.findOne({ uid });
                     exists = !!user;
                 };
