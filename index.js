@@ -807,7 +807,7 @@ async function run() {
             const page = req.query.page;
             const size = parseInt(req.query.size);
             const email = req.query.email;
-            const query = { email: email };
+            const query = { "customerInfo.customer_email": email };
             let orders;
             let count;
             if (page && email) {
@@ -826,7 +826,7 @@ async function run() {
             res.json({
                 totalCount,
                 count,
-                orders,
+                orders: orders.reverse()
             });
         });
 
@@ -923,6 +923,19 @@ async function run() {
         });
 
 
+        // 
+        // app.delete('/delete-orders', async (req, res) => {
+        //     const result = await ordersCollection.deleteMany({ orderTime: { $exists: true } });
+
+        //     if (result.deletedCount === 0) {
+        //         return res.status(404).json({ message: 'No orders found with the "orderTime" field.' });
+        //     }
+
+        //     res.status(200).json({
+        //         message: `${result.deletedCount} orders with 'orderTime' field deleted successfully.`,
+        //         deletedCount: result.deletedCount,
+        //     });
+        // });
 
 
         /*---------------------------------------------------------
