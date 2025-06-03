@@ -802,7 +802,7 @@ async function run() {
         });
 
 
-        // Get Single Order.
+        // Get Customer Specified Order.
         app.get('/order/user', async (req, res) => {
             const page = req.query.page;
             const size = parseInt(req.query.size);
@@ -832,11 +832,16 @@ async function run() {
 
 
         // Get Order For Invoice.
-        app.get('/order/invoice/:id', async (req, res) => {
-            const id = req.params.id;
-            const query = { _id: new ObjectId(id) };
+        app.get('/order/invoice', async (req, res) => {
+            const { email, id } = req.query;
+            const query = { _id: new ObjectId(id), "customerInfo.customer_email": email };
             const result = await ordersCollection.findOne(query);
-            res.status(200).send(result);
+            if (result) {
+                res.status(200).send(result);
+            }
+            else {
+                res.status(404).send({ message: "No Order Found! Please Try with right credential." })
+            }
         });
 
         // Post new Order.
@@ -924,17 +929,17 @@ async function run() {
 
 
         // 
-        // app.delete('/delete-orders', async (req, res) => {
-        //     const result = await ordersCollection.deleteMany({ orderTime: { $exists: true } });
+        // app.patch('/up-orders', async (req, res) => {
+        //     const result = await ordersCollection.updateMany({}, { $rename: { "shipping&billing": "sbAddress" } });
 
         //     if (result.deletedCount === 0) {
         //         return res.status(404).json({ message: 'No orders found with the "orderTime" field.' });
         //     }
 
-        //     res.status(200).json({
-        //         message: `${result.deletedCount} orders with 'orderTime' field deleted successfully.`,
-        //         deletedCount: result.deletedCount,
-        //     });
+        // res.status(200).json({
+        //     message: `${result.deletedCount} orders with 'orderTime' field deleted successfully.`,
+        //     deletedCount: result.deletedCount,
+        // });
         // });
 
 
