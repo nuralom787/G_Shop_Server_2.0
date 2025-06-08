@@ -4,6 +4,7 @@ require("dotenv").config();
 const { MongoClient, ObjectId, ServerApiVersion } = require('mongodb');
 var jwt = require('jsonwebtoken');
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+const { getValue, setValue } = require("node-global-storage");
 
 // Ports
 const port = process.env.PORT || 5000;
@@ -25,6 +26,9 @@ const client = new MongoClient(uri, {
     }
 });
 
+// FontEnd.
+const client_url = "http://localhost:5173";
+const server_url = "http://localhost:5000";
 
 // Server Code.
 async function run() {
@@ -601,8 +605,8 @@ async function run() {
                 const data = {
                     email: email,
                     cart: cart,
-                    cartTotalPrice: item.price,
-                    cartDiscount: 0,
+                    cartTotalPrice: parseFloat(item.price),
+                    cartDiscount: parseFloat(0),
                     cartTotalItem: cart.length,
                     cartTotalQuantity: item.quantity,
                     appliedCoupon: null,
@@ -632,8 +636,8 @@ async function run() {
                 const updateDoc = {
                     $set: {
                         cart: user.cart,
-                        cartTotalPrice: totalPrice,
-                        cartDiscount: 0,
+                        cartTotalPrice: parseFloat(totalPrice),
+                        cartDiscount: parseFloat(0),
                         cartTotalItem: totalItem,
                         cartTotalQuantity: totalQuantity,
                         appliedCoupon: null,
@@ -670,8 +674,8 @@ async function run() {
             const updateDoc = {
                 $set: {
                     cart: user.cart,
-                    cartTotalPrice: totalPrice,
-                    cartDiscount: 0,
+                    cartTotalPrice: parseFloat(totalPrice),
+                    cartDiscount: parseFloat(0),
                     cartTotalItem: totalItem,
                     cartTotalQuantity: totalQuantity,
                     appliedCoupon: null,
@@ -698,8 +702,8 @@ async function run() {
             const updateDoc = {
                 $set: {
                     cart: newCart,
-                    cartTotalPrice: totalPrice,
-                    cartDiscount: 0,
+                    cartTotalPrice: parseFloat(totalPrice),
+                    cartDiscount: parseFloat(0),
                     cartTotalItem: totalItem,
                     cartTotalQuantity: totalQuantity,
                     appliedCoupon: null,
@@ -1258,7 +1262,7 @@ async function run() {
         //                         Payment Related API
         // ----------------------------------------------------------------------------
 
-
+        // Card Payment Api.
         app.post('/create-payment-intent', async (req, res) => {
             const { price } = req.body;
             const amount = parseInt(price * 100);
@@ -1273,6 +1277,134 @@ async function run() {
                 clientSecret: paymentIntent.client_secret
             });
         });
+
+
+
+        // -------------------------------------------------------
+        //                  Bkash Payment Api. 
+        // -------------------------------------------------------
+
+
+        // Create Grand Token.
+        app.post("/create_payment", async (req, res) => {
+            const { price } = req.body;
+            let invoiceId;
+            let invoiceExists = true;
+
+            // Create An Unique Invoice Id.
+            while (invoiceExists) {
+                const pin = Math.floor(100000 + Math.random() * 900000);
+                invoiceId = "#" + pin;
+
+                // Check database if this orderId already exists
+                const invoice = await ordersCollection.findOne({ invoiceId });
+                invoiceExists = !!invoice;
+            };
+
+            // Fetch Grand Token.
+            const options = {
+                method: 'POST',
+                headers: {
+                    accept: 'application/json',
+                    username: process.env.BKASH_USERNAME,
+                    password: process.env.BKASH_PASSWORD,
+                    'content-type': 'application/json'
+                },
+                body: JSON.stringify({
+                    app_secret: process.env.BKASH_APP_SECRET,
+                    app_key: process.env.BKASH_APP_KEY
+                })
+            };
+
+            fetch('https://tokenized.pay.bka.sh/v1.2.0-beta/tokenized/checkout/token/grant', options)
+                .then(response => response.json())
+                .then(data => {
+                    // Set Token In The Global Storage.
+                    setValue("id_token", data.id_token, { protected: true });
+
+                    // Fetch Create Payment.
+                    if (data.id_token) {
+                        // Payment Create Options.
+                        const create_options = {
+                            method: 'POST',
+                            headers: {
+                                accept: 'application/json',
+                                Authorization: `Bearer ${getValue("id_token")}`,
+                                'X-APP-Key': process.env.BKASH_APP_KEY,
+                                'content-type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                mode: '0011',
+                                payerReference: ' ',
+                                callbackURL: `${server_url}/execute_payment`,
+                                amount: parseFloat(price).toFixed(2),
+                                currency: 'BDT',
+                                intent: 'sale',
+                                merchantInvoiceNumber: invoiceId
+                            })
+                        };
+
+                        fetch('https://tokenized.pay.bka.sh/v1.2.0-beta/tokenized/checkout/create', create_options)
+                            .then(response => response.json())
+                            .then(data => {
+                                res.send(data);
+                            })
+                            .catch(err => {
+                                res.send(err);
+                            });
+                    }
+                })
+                .catch(err => {
+                    res.send(err);
+                })
+        });
+
+
+        // Execute Payment.
+        app.get("/execute_payment", async (req, res) => {
+            const { paymentID, status } = req.query;
+
+            // Set Payment ID In The Global Storage.
+            setValue("paymentID", paymentID, { protected: true });
+
+            // Check If Payment Cancel Or Fail.
+            if (status === "cancel" || status === "failure") {
+                // return res.redirect(`http://localhost:5173/error?paymentID=${paymentID}&status=${status}`);
+                return res.redirect(`${client_url}/user/payment?paymentID=${paymentID}&status=${status}`);
+            };
+
+            // Execute Payment If Payment Status Success.
+            if (status === "success") {
+                try {
+                    const options = {
+                        method: 'POST',
+                        headers: {
+                            accept: 'application/json',
+                            Authorization: `Bearer ${getValue("id_token")}`,
+                            'X-APP-Key': process.env.BKASH_APP_KEY,
+                            'content-type': 'application/json'
+                        },
+                        body: JSON.stringify({ paymentID: paymentID })
+                    };
+
+                    fetch('https://tokenized.pay.bka.sh/v1.2.0-beta/tokenized/checkout/execute', options)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.statusCode === "0000" && data.statusMessage === "Successful") {
+                                return res.redirect(`${client_url}/user/payment?paymentID=${paymentID}&status=${status}&trxID=${data.trxID}&transactionStatus=${data.transactionStatus}`);
+                            }
+                        })
+                        .catch(err => {
+                            res.send(err);
+                        });
+                }
+                catch (error) {
+                    res.send(error);
+                }
+            }
+        });
+
+
 
     }
     finally {
