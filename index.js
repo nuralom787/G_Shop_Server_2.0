@@ -26,9 +26,15 @@ const client = new MongoClient(uri, {
     }
 });
 
-// FontEnd.
-const client_url = "http://localhost:5173";
-const server_url = "http://localhost:5000";
+// client and server url's.
+const client_url = process.env.CLIENT_URL;
+const server_url = process.env.SERVER_URL;
+
+// Bkash Payment Related url's.
+const grant_token_url = process.env.BKASH_GRANT_TOKEN_URL;
+const create_url = process.env.BKASH_CREATE_URL;
+const execute_url = process.env.BKASH_EXECUTE_URL;
+
 
 // Server Code.
 async function run() {
@@ -1301,6 +1307,8 @@ async function run() {
                 invoiceExists = !!invoice;
             };
 
+            setValue("invoiceId", invoiceId, { protected: true });
+
             // Fetch Grand Token.
             const options = {
                 method: 'POST',
@@ -1316,7 +1324,7 @@ async function run() {
                 })
             };
 
-            fetch('https://tokenized.pay.bka.sh/v1.2.0-beta/tokenized/checkout/token/grant', options)
+            fetch(`${grant_token_url}`, options)
                 .then(response => response.json())
                 .then(data => {
                     // Set Token In The Global Storage.
@@ -1344,7 +1352,7 @@ async function run() {
                             })
                         };
 
-                        fetch('https://tokenized.pay.bka.sh/v1.2.0-beta/tokenized/checkout/create', create_options)
+                        fetch(`${create_url}`, create_options)
                             .then(response => response.json())
                             .then(data => {
                                 res.send(data);
@@ -1387,11 +1395,12 @@ async function run() {
                         body: JSON.stringify({ paymentID: paymentID })
                     };
 
-                    fetch('https://tokenized.pay.bka.sh/v1.2.0-beta/tokenized/checkout/execute', options)
+                    fetch(`${execute_url}`, options)
                         .then(response => response.json())
                         .then(data => {
                             if (data.statusCode === "0000" && data.statusMessage === "Successful") {
-                                return res.redirect(`${client_url}/user/payment?paymentID=${paymentID}&status=${status}&trxID=${data.trxID}&transactionStatus=${data.transactionStatus}`);
+                                const invoice = getValue("invoiceId");
+                                return res.redirect(`${client_url}/user/payment?paymentID=${paymentID}&status=${status}&trxID=${data.trxID}&transactionStatus=${data.transactionStatus}&invoiceId=${invoice.slice(1, 7)}`);
                             }
                         })
                         .catch(err => {
