@@ -860,8 +860,22 @@ async function run() {
             const email = orderInfo.customerInfo.customer_email;
             let orderId;
             let orderExists = true;
-            let invoiceId;
+            let invoiceId = orderInfo.invoice;
             let invoiceExists = true;
+
+            // Froude Checking for duplicate order.
+            if (orderInfo.paymentMethod === "BKASH") {
+                const existing = await ordersCollection.findOne({
+                    $or: [
+                        { "paymentInfo.paymentID": orderInfo.paymentInfo.paymentID },
+                        { "paymentInfo.trxID": orderInfo.paymentInfo.trxID }
+                    ]
+                });
+
+                if (existing) {
+                    return res.status(403).send({ message: "This payment has already been used to purchase an order! Please make another payment to place a new order." })
+                }
+            };
 
             // Create an Unique Order Id.
             while (orderExists) {
@@ -874,17 +888,19 @@ async function run() {
             };
 
             // Create An Unique Invoice Id.
-            while (invoiceExists) {
-                const pin = Math.floor(100000 + Math.random() * 900000);
-                invoiceId = "#" + pin;
+            if (orderInfo.invoice === null) {
+                while (invoiceExists) {
+                    const pin = Math.floor(100000 + Math.random() * 900000);
+                    invoiceId = "#" + pin;
 
-                // Check database if this orderId already exists
-                const invoice = await ordersCollection.findOne({ invoiceId });
-                invoiceExists = !!invoice;
+                    // Check database if this orderId already exists
+                    const invoice = await ordersCollection.findOne({ invoiceId });
+                    invoiceExists = !!invoice;
+                };
+                orderInfo.invoice = invoiceId;
             };
 
             orderInfo.orderId = orderId;
-            orderInfo.invoice = invoiceId;
 
             // Insert Order Data in Order Database.
             const result = await ordersCollection.insertOne(orderInfo);
@@ -1306,8 +1322,8 @@ async function run() {
                 const invoice = await ordersCollection.findOne({ invoiceId });
                 invoiceExists = !!invoice;
             };
-
-            setValue("invoiceId", invoiceId, { protected: true });
+            setValue("invoiceId", invoiceId);
+            // console.log("New Id: ", getValue("invoiceId"));
 
             // Fetch Grand Token.
             const options = {
