@@ -313,8 +313,8 @@ async function run() {
                     cartTotalItem: cart.length,
                     cartTotalQuantity: item.quantity,
                     appliedCoupon: null,
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString()
+                    createdAt: new Date(),
+                    updatedAt: new Date()
                 };
 
                 const result = await cartsCollection.insertOne(data);
@@ -344,7 +344,7 @@ async function run() {
                         cartTotalItem: totalItem,
                         cartTotalQuantity: totalQuantity,
                         appliedCoupon: null,
-                        updatedAt: new Date().toISOString()
+                        updatedAt: new Date()
                     }
                 };
                 const result = await cartsCollection.updateOne(filter, updateDoc);
@@ -382,7 +382,7 @@ async function run() {
                     cartTotalItem: totalItem,
                     cartTotalQuantity: totalQuantity,
                     appliedCoupon: null,
-                    updatedAt: new Date().toISOString()
+                    updatedAt: new Date()
                 }
             };
             const result = await cartsCollection.updateOne(filter, updateDoc);
@@ -410,7 +410,7 @@ async function run() {
                     cartTotalItem: totalItem,
                     cartTotalQuantity: totalQuantity,
                     appliedCoupon: null,
-                    updatedAt: new Date().toISOString()
+                    updatedAt: new Date()
                 }
             };
             const result = await cartsCollection.updateOne(filter, updateDoc);
@@ -444,7 +444,8 @@ async function run() {
             const result = await cartsCollection.updateOne({ email }, {
                 $set: {
                     cartDiscount: parseFloat(discountAmount),
-                    appliedCoupon: couponCode
+                    appliedCoupon: couponCode,
+                    updatedAt: new Date()
                 }
             });
 
@@ -585,7 +586,7 @@ async function run() {
             };
 
             // Create An Unique Invoice Id.
-            if (orderInfo.invoice === null) {
+            if (orderInfo.invoice === null || orderInfo.invoice === undefined) {
                 while (invoiceExists) {
                     const pin = Math.floor(100000 + Math.random() * 900000);
                     invoiceId = "#" + pin;
@@ -597,19 +598,16 @@ async function run() {
                 orderInfo.invoice = invoiceId;
             };
 
+            orderInfo.status = "Pending";
             orderInfo.orderId = orderId;
+            orderInfo.createdAt = new Date();
+            orderInfo.updatedAt = new Date();
 
             // Insert Order Data in Order Database.
             const result = await ordersCollection.insertOne(orderInfo);
 
             // Remove cart item from cart.
             if (result.insertedId) {
-                // const user = await cartsCollection.findOne({ email });
-                // const newCart = user.cart.filter(p => p._id !== id);
-
-                // const totalItem = newCart.length;
-                // const totalQuantity = newCart.reduce((sum, p) => sum + p.quantity, 0);
-                // const totalPrice = newCart.reduce((sum, p) => sum + (p.price * p.quantity), 0);
                 const updateDoc = {
                     $set: {
                         cart: [],
@@ -618,7 +616,7 @@ async function run() {
                         cartTotalItem: 0,
                         cartTotalQuantity: 0,
                         appliedCoupon: null,
-                        updatedAt: new Date().toISOString()
+                        updatedAt: new Date()
                     }
                 };
                 const cartResult = await cartsCollection.updateOne({ email }, updateDoc);
@@ -632,23 +630,6 @@ async function run() {
                 res.status(400).send({ message: "somethings want's wrong! please try again." });
             }
         });
-
-
-        // Update Order Status.
-        // app.patch('/update/order-status/:id', async (req, res) => {
-        //     const id = req.params.id;
-        //     const currentStatus = req.body;
-
-        //     const filter = { _id: new ObjectId(id) };
-        //     const updateDoc = {
-        //         $set: {
-        //             status: currentStatus.status
-        //         }
-        //     };
-
-        //     const result = await ordersCollection.updateOne(filter, updateDoc);
-        //     res.send(result);
-        // });
 
 
         // 
@@ -760,7 +741,7 @@ async function run() {
                     phoneNumber: updatedData.phoneNumber,
                     dob: updatedData.dob,
                     gender: updatedData.gender,
-                    updatedAt: new Date().toISOString()
+                    updatedAt: new Date()
                 }
             };
             const result = await customersCollection.updateOne({ email }, updateDoc);
